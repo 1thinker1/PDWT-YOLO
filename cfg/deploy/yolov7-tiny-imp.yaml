@@ -1,0 +1,76 @@
+# parameters
+nc: 80  # number of classes
+depth_multiple: 1.0  # model depth multiple
+width_multiple: 1.0  # layer channel multiple
+
+# anchors
+anchors: 
+    - [3,4,  3,8,  6,5]
+    - [6,11,  12,6,  10,11]
+    - [9,18,  18,10,  17,20]
+    - [26,16,  38,21,  25,36]
+    - [58,33,  46,54,  93,76]
+
+# yolov7-tiny backbone
+backbone:
+  # [from, number, module, args] c2, k=1, s=1, p=None, g=1, act=True
+  [[-1, 1, Conv, [32, 3, 2, None, 1, True]],  # 0-P1/2  
+  
+   [-1, 1, Conv, [64, 3, 2, None, 1, True]],  # 1-P2/4    
+
+   [-1, 1, Yolov7_Tiny_E_ELAN, [64, 32, True]], # 2
+
+   [-1, 1, Conv, [64, 3, 2, None, 1, True]],  # 3-P3/8
+   [-1, 1, Yolov7_Tiny_E_ELAN, [128, 64, True]], # 4
+
+   [-1, 1, Conv, [128, 3, 2, None, 1, True]],  # 5-P4/16
+   [-1, 1, Yolov7_Tiny_E_ELAN, [256, 128, True]], # 6
+
+   [-1, 1, Conv, [256, 3, 2, None, 1, True]],  # 7-P5/32
+   [-1, 1, Yolov7_Tiny_E_ELAN, [512, 256, True]], # 8
+  ]
+
+# yolov7-tiny head
+head:
+  [[-1, 1, Yolov7_Tiny_SPP, [256, True]], # 9-Yolov7-tiny-spp
+   
+   [-1, 1, Conv, [128, 1, 1, None, 1, True]], 
+   [-1, 1, nn.Upsample, [None, 2, 'nearest']],
+   [6, 1, Conv, [128, 1, 1, None, 1, True]], # route backbone P4
+   [[-1, -2], 1, Concat, [1]],
+   [-1, 1, Yolov7_Tiny_E_ELAN, [128, 64, True]], # 14
+
+   [-1, 1, Conv, [64, 1, 1, None, 1, True]],
+   [-1, 1, nn.Upsample, [None, 2, 'nearest']],
+   [4, 1, Conv, [64, 1, 1, None, 1, True]], # route backbone P3
+   [[-1, -2], 1, Concat, [1]],
+   [-1, 1, Yolov7_Tiny_E_ELAN, [64, 32, True]], # 19
+   
+   [-1, 1, Conv, [32, 1, 1, None, 1, True]],
+   [-1, 1, nn.Upsample, [None, 2, 'nearest']],
+   [2, 1, Conv, [32, 1, 1, None, 1, True]], # route backbone P2
+   [[-1, -2], 1, Concat, [1]],
+   [-1, 1, Yolov7_Tiny_E_ELAN, [64, 32, True]], # 24
+
+   [-1, 1, Conv, [64, 3, 2, None, 1, True]],
+   [[-1, 19], 1, Concat, [1]],
+   [-1, 1, Yolov7_Tiny_E_ELAN, [128, 64, True]], # 27
+
+   [-1, 1, Conv, [128, 3, 2, None, 1, True]],
+   [[-1, 14], 1, Concat, [1]],
+   [-1, 1, Yolov7_Tiny_E_ELAN, [128, 64, True]], # 30
+
+   [-1, 1, Conv, [256, 3, 2, None, 1, True]],
+   [[-1, 9], 1, Concat, [1]],
+   [-1, 1, Yolov7_Tiny_E_ELAN, [256, 128, True]], # 33
+
+   [24, 1, Conv, [64, 3, 1, None, 1, True]], # 34-P2
+   [27, 1, Conv, [128, 3, 1, None, 1, True]], # 35-P3
+   [30, 1, Conv, [256, 3, 1, None, 1, True]], # 36-P4
+   [33, 1, Conv, [512, 3, 1, None, 1, True]], # 37-P5
+
+   [33, 1, Conv, [256, 3, 2, None, 1, True]],  # 38-P5/32
+   [-1, 1, Yolov7_Tiny_E_ELAN, [512, 256, True]], # 39
+
+   [[34, 35, 36, 37, 39], 1, IDetect, [nc, anchors]],   # Detect(P2, P3, P4, P5, P6)
+  ]
